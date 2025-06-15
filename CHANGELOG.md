@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/brrock/release-please-test/compare/v1.0.2...v1.0.3) (2025-06-15)
+
+
+### Bug Fixes
+
+* it ([ba7c5c1](https://github.com/brrock/release-please-test/commit/ba7c5c1dd9cb5b48692c70319e9a231c9bce8c01))
+
 ## [1.0.2](https://github.com/brrock/release-please-test/compare/v1.0.1...v1.0.2) (2025-06-15)
 
 
