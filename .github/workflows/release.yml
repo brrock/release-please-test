@@ -53,7 +53,7 @@ jobs:
                 # --silent suppresses non-JSON output.
                 # The output is piped directly into jq to extract the author's login.
                 # jq -r outputs the raw string (no quotes), // "unknown" provides a fallback if login isn't found.
-                github_user=$(gh api "repos/${{ github.repository }}/commits/${commit_hash}" --silent | jq -r '.author.login // "unknown"')
+                github_user=$(gh api "repos/${{ github.repository }}/commits/${commit_hash}"  | jq -r '.author.login // "unknown"')
 
                 echo "${line} by @${github_user}" >> "$TEMP_CHANGELOG" # Append the author to the line and write to temp file
               else
