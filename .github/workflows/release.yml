@@ -13,12 +13,66 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
-          # this assumes that you have created a personal access token
-          # (PAT) and configured it as a GitHub action secret named
-          # `MY_RELEASE_PLEASE_TOKEN` (this secret name is not important).
           token: ${{ secrets.PAT }}
-          # this is a built-in strategy in release-please, see "Action Inputs"
-          # for more options
           release-type: node
           config-file: ./.github/release-please-config.json
+
+      - name: Checkout repository
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0  # Fetch full history for git log
+
+      - name: Add commit authors and update release
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          # Function to get GitHub username from commit
+          get_author() {
+            local commit_hash=$1
+            # Try to get GitHub username from commit author
+            git show -s --format='%an' "$commit_hash" 2>/dev/null || echo "Unknown"
+          }
+
+          # Process changelog to add authors
+          cp CHANGELOG.md CHANGELOG.md.bak
+          
+          # Use awk to process the changelog
+          awk '
+          BEGIN { 
+            "git log --oneline --format=\"%H %an\"" | getline commits_info
+            close("git log --oneline --format=\"%H %an\"")
+          }
+          /\* .* \(\[([a-f0-9]+)\]\([^)]+\)\)/ {
+            # Extract commit hash from the line
+            match($0, /\[([a-f0-9]+)\]/, commit_match)
+            if (commit_match[1]) {
+              commit_hash = commit_match[1]
+              # Get author for this commit
+              cmd = "git show -s --format=\"%an\" " commit_hash
+              cmd | getline author
+              close(cmd)
+              # Add author to the line
+              gsub(/\)\s*$/, ") by @" author, $0)
+            }
+          }
+          { print }
+          ' CHANGELOG.md.bak > CHANGELOG.md
+
+          # Extract release notes from changelog for this version
+          RELEASE_NOTES=$(awk "/^## \[?${RELEASE_TAG#v}/ {flag=1; next} /^## / && flag {exit} flag" CHANGELOG.md)
+
+          # Update the GitHub release with the new release notes
+          gh release edit "$RELEASE_TAG" --notes "$RELEASE_NOTES"
+
+          # Commit the updated changelog
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add CHANGELOG.md
+          git commit -m "chore: add commit authors to changelog [skip ci]" || exit 0
+          git push
