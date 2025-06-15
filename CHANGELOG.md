@@ -5,12 +5,12 @@
 
 ### Bug Fixes
 
-* use post processing ([b544945](https://github.com/brrock/release-please-test/commit/b544945e0a7e3766f610782f433473d0ece9b852))
+* use post processing ([b544945](https://github.com/brrock/release-please-test/commit/b544945e0a7e3766f610782f433473d0ece9b852)) by @Benjy
 
 ## 1.0.0 (2025-06-15)
 
 
 ### Features
 
-* init ([bf0c61b](https://github.com/brrock/release-please-test/commit/bf0c61bf1c286e5ea933e0c9565264591c4ce0e8))
-* update ([1b31e07](https://github.com/brrock/release-please-test/commit/1b31e0715e49d63bebcf00eff9e97171aeb23fad))
+* init ([bf0c61b](https://github.com/brrock/release-please-test/commit/bf0c61bf1c286e5ea933e0c9565264591c4ce0e8)) by @Benjy
+* update ([1b31e07](https://github.com/brrock/release-please-test/commit/1b31e0715e49d63bebcf00eff9e97171aeb23fad)) by @Benjy
