@@ -1,73 +1,87 @@
 on:
   push:
     branches:
-      - main
-permissions:
-  contents: write
-  pull-requests: write
+      - main # This workflow runs when changes are pushed to the 'main' branch
 
-name: release-please
+permissions:
+  contents: write # Needed to checkout repository and commit changes (CHANGELOG.md)
+  pull-requests: write # Often needed by release-please for creating PRs, but not directly by your script
+
+name: release-please # Name of the workflow as it appears in GitHub Actions UI
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Standard runner environment for GitHub Actions
     steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
+      - uses: googleapis/release-please-action@v4 # Uses the release-please action
+        id: release # Assign an ID to this step to reference its outputs later
         with:
-          token: ${{ secrets.PAT }}
-          release-type: node
-          config-file: ./.github/release-please-config.json
+          token: ${{ secrets.PAT }} # Personal Access Token with repo scope (contents:write)
+          release-type: node # Configures release-please for Node.js projects
+          config-file: ./.github/release-please-config.json # Path to your release-please configuration
 
-      - name: Checkout repository
+      - name: Checkout repository # Checkout your repository's code
+        # Only proceed if release-please created a new release (tag)
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # Uses the official checkout action
         with:
-          token: ${{ secrets.PAT }}
-          fetch-depth: 0 # Fetch full history for git log
+          token: ${{ secrets.PAT }} # Use the PAT to ensure full permissions for fetching history
+          fetch-depth: 0 # IMPORTANT: Fetches the entire git history, needed for git log/commit parsing
 
-      - name: Add Authors and Update Release
+      - name: Add Authors and Update Release # Custom step to enhance the changelog and release notes
+        # Only run this step if a release was successfully created
         if: ${{ steps.release.outputs.release_created }}
         env:
-          GH_TOKEN: ${{ secrets.PAT }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          GH_TOKEN: ${{ secrets.PAT }} # Set GH_TOKEN for the gh CLI to authenticate
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }} # Get the tag name of the new release from release-please output
         run: |
-          set -e
+          set -e # Exit immediately if a command exits with a non-zero status
 
           TEMP_CHANGELOG="CHANGELOG.md.new"
-          touch "$TEMP_CHANGELOG"
+          touch "$TEMP_CHANGELOG" # Create a temporary file for the new changelog content
 
+          # Check if CHANGELOG.md exists before attempting to read it
+          # This prevents errors on the very first release where CHANGELOG.md might not yet be present.
           if [ -f "CHANGELOG.md" ]; then
-            while IFS= read -r line; do
+            while IFS= read -r line; do # Read the existing CHANGELOG.md line by line
+              # Regex to find lines that contain a commit hash (e.g., "* Feature: (fix) [abcdefg] (URL)")
               if [[ "$line" =~ \*\ (.*)\ \(\[([a-f0-9]{7,40})\]\(.* ]]; then
-                commit_hash="${BASH_REMATCH[2]}"
+                commit_hash="${BASH_REMATCH[2]}" # Extract the commit hash
 
                 # Get the GitHub username for the commit
-                github_user=$(gh api "repos/${{ github.repository }}/commits/${commit_hash}" --jq '.author.login // "unknown"' --silent)
+                # gh api retrieves commit details as JSON.
+                # --silent suppresses non-JSON output.
+                # The output is piped directly into jq to extract the author's login.
+                # jq -r outputs the raw string (no quotes), // "unknown" provides a fallback if login isn't found.
+                github_user=$(gh api "repos/${{ github.repository }}/commits/${commit_hash}" --silent | jq -r '.author.login // "unknown"')
 
-                echo "${line} by @${github_user}" >> "$TEMP_CHANGELOG"
+                echo "${line} by @${github_user}" >> "$TEMP_CHANGELOG" # Append the author to the line and write to temp file
               else
-                echo "$line" >> "$TEMP_CHANGELOG"
+                echo "$line" >> "$TEMP_CHANGELOG" # Write original line to temp file if no commit hash found
               fi
-            done < "CHANGELOG.md"
+            done < "CHANGELOG.md" # Input for the while loop is the current CHANGELOG.md
           else
-            echo "CHANGELOG.md not found. Skipping author addition."
+            echo "CHANGELOG.md not found. Skipping author addition to changelog content."
           fi
 
-          mv "$TEMP_CHANGELOG" "CHANGELOG.md"
+          mv "$TEMP_CHANGELOG" "CHANGELOG.md" # Replace the original CHANGELOG.md with the modified one
 
-          # Update the GitHub release
+          # Update the GitHub release description with the relevant section from the modified CHANGELOG.md
+          # awk searches for the release tag in CHANGELOG.md and extracts the content until the next '##' heading.
           RELEASE_BODY=$(awk "/^## \\[?${RELEASE_TAG#v}/{flag=1;next} /^## / && flag{exit} flag" CHANGELOG.md)
+
+          # Add a fallback for RELEASE_BODY in case awk doesn't find the content
           if [ -z "$RELEASE_BODY" ]; then
             echo "Warning: Could not find release notes for $RELEASE_TAG in CHANGELOG.md."
             echo "Using a default message for release body."
-            RELEASE_BODY="Release $RELEASE_TAG"
+            RELEASE_BODY="Release $RELEASE_TAG" # Default message if content extraction fails
           fi
-          gh release edit "$RELEASE_TAG" --notes "$RELEASE_BODY"
+          gh release edit "$RELEASE_TAG" --notes "$RELEASE_BODY" # Edit the GitHub release using gh CLI
 
-          # Commit changes
-          git config user.name "github-actions[bot]"
+          # Commit the changes made to CHANGELOG.md back to the repository
+          git config user.name "github-actions[bot]" # Configure git user for the commit
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "chore: add commit authors [skip ci]" || true
-          git push
+          git add CHANGELOG.md # Stage the modified CHANGELOG.md
+          # Commit the changes. '|| true' prevents the workflow from failing if there are no changes to commit.
+          git commit -m "chore: add commit authors to CHANGELOG.md [skip ci]" || true
+          git push # Push the committed changes to the main branch
