@@ -19,60 +19,65 @@ jobs:
           release-type: node
           config-file: ./.github/release-please-config.json
 
+
       - name: Checkout repository
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
-          fetch-depth: 0  # Fetch full history for git log
+          fetch-depth: 0 
 
-      - name: Add commit authors and update release
+      - name: Add Authors and Update Release
         if: ${{ steps.release.outputs.release_created }}
         env:
           GH_TOKEN: ${{ secrets.PAT }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
         run: |
-          # Function to get GitHub username from commit
-          get_author() {
-            local commit_hash=$1
-            # Try to get GitHub username from commit author
-            git show -s --format='%an' "$commit_hash" 2>/dev/null || echo "Unknown"
-          }
+          set -e
 
-          # Process changelog to add authors
-          cp CHANGELOG.md CHANGELOG.md.bak
-          
-          # Use awk to process the changelog
-          awk '
-          BEGIN { 
-            "git log --oneline --format=\"%H %an\"" | getline commits_info
-            close("git log --oneline --format=\"%H %an\"")
-          }
-          /\* .* \(\[([a-f0-9]+)\]\([^)]+\)\)/ {
-            # Extract commit hash from the line
-            match($0, /\[([a-f0-9]+)\]/, commit_match)
-            if (commit_match[1]) {
-              commit_hash = commit_match[1]
-              # Get author for this commit
-              cmd = "git show -s --format=\"%an\" " commit_hash
-              cmd | getline author
-              close(cmd)
-              # Add author to the line
-              gsub(/\)\s*$/, ") by @" author, $0)
-            }
-          }
-          { print }
-          ' CHANGELOG.md.bak > CHANGELOG.md
+          TEMP_CHANGELOG="CHANGELOG.md.new"
+          touch "$TEMP_CHANGELOG"
 
-          # Extract release notes from changelog for this version
-          RELEASE_NOTES=$(awk "/^## \[?${RELEASE_TAG#v}/ {flag=1; next} /^## / && flag {exit} flag" CHANGELOG.md)
+          # Use 'grep -q' to check for the existence of CHANGELOG.md before processing
+          # This prevents errors if CHANGELOG.md doesn't exist yet (e.g., first release)
+          if [ -f "CHANGELOG.md" ]; then
+            while IFS= read -r line; do
+              # Your regex looks good for matching the commit hash!
+              if [[ "$line" =~ \*\ (.*)\ \(\[([a-f0-9]{7,40})\]\(.* ]]; then
+                commit_hash="${BASH_REMATCH[2]}"
 
-          # Update the GitHub release with the new release notes
-          gh release edit "$RELEASE_TAG" --notes "$RELEASE_NOTES"
+                # Get the GitHub username for the commit using gh CLI
+                # Add --silent to gh api to suppress progress output
+                github_user=$(gh api "repos/${{ github.repository }}/commits/${commit_hash}" --jq '.author.login // "unknown"' --silent)
 
-          # Commit the updated changelog
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+                echo "${line} by @${github_user}" >> "$TEMP_CHANGELOG"
+              else
+                echo "$line" >> "$TEMP_CHANGELOG"
+              fi
+            done < "CHANGELOG.md"
+          else
+            echo "CHANGELOG.md not found. Skipping author addition."
+          fi
+
+          mv "$TEMP_CHANGELOG" "CHANGELOG.md"
+
+          # Update the GitHub release with the new notes from the modified CHANGELOG.md
+          # We need to make sure the RELEASE_TAG is present in the CHANGELOG for awk to work.
+          # The 'release-please-action' usually writes the initial release notes.
+          RELEASE_BODY=$(awk "/^## \\[?${RELEASE_TAG#v}/{flag=1;next} /^## / && flag{exit} flag" CHANGELOG.md)
+          if [ -z "$RELEASE_BODY" ]; then
+            echo "Warning: Could not find release notes for $RELEASE_TAG in CHANGELOG.md."
+            echo "Using a default message for release body."
+            RELEASE_BODY="Release $RELEASE_TAG"
+          fi
+          gh release edit "$RELEASE_TAG" --notes "$RELEASE_BODY"
+
+          # Commit changes to CHANGELOG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
-          git commit -m "chore: add commit authors to changelog [skip ci]" || exit 0
+          # Use 'git commit --amend --no-edit' if you want to add authors to the *existing* commit,
+          # but committing a new commit for the changelog update is usually safer and clearer.
+          # The '|| true' is good to prevent failure if there are no changes to commit.
+          git commit -m "chore: add commit authors to CHANGELOG.md [skip ci]" || true
           git push
