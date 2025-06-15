@@ -1,4 +1,9 @@
 {
   "changelog-type": "github",
-  "default-notes-section-template": ".github/release-please/default.hbs"
+  "packages": {
+    ".": { 
+      "release-type": "node", 
+      "default-notes-section-template": ".github/release-please/default.hbs"
+    }
+}
 }
