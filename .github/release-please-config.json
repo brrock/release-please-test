@@ -3,7 +3,7 @@
   "packages": {
     ".": { 
       "release-type": "node", 
-      "default-notes-section-template": ".github/release-please/default.hbs"
+      "template": ".github/changelog.hbs"
     }
 }
 }

@@ -1,2 +1,0 @@
-{{! This template will be used for all changelog sections unless overridden by a specific type template }}
-* {{this.header}} {{#if this.scope}} **{{this.scope}}:**{{/if}} {{#if this.title}} {{this.title}} {{/if}} {{#if this.pr}} ([#{{this.pr}}](https://github.com/{{owner}}/{{repository}}/issues/{{this.pr}})){{/if}} {{#if this.hash}} ([{{this.shortHash}}](https://github.com/{{owner}}/{{repository}}/commit/{{this.hash}})){{/if}} **by @{{this.author.username}}**
