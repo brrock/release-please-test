@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/brrock/release-please-test/compare/v1.0.4...v1.1.0) (2025-06-15)
+
+
+### Features
+
+* remove comments ([4c9f705](https://github.com/brrock/release-please-test/commit/4c9f70582be3b9b678727db8d2b76334cc73e7a1))
+
 ## [1.0.4](https://github.com/brrock/release-please-test/compare/v1.0.3...v1.0.4) (2025-06-15)
 
 
