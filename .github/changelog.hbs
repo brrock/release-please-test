@@ -1,0 +1,12 @@
+{{#each releases}}
+## {{version}} ({{date}})
+
+{{#each groups}}
+### {{title}}
+
+{{#each commits}}
+* {{subject}}{{#if scope}} ({{scope}}){{/if}} by @{{author.login}} {{#if pullRequest}}([#{{pullRequest.number}}]({{pullRequest.url}})){{/if}}
+{{/each}}
+
+{{/each}}
+{{/each}}
