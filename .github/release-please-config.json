@@ -1,3 +1,4 @@
 {
-  "changelog-type": "github"
+  "changelog-type": "github",
+  "default-notes-section-template": ".github/release-please/default.hbs"
 }

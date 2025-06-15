@@ -22,6 +22,3 @@ jobs:
           # for more options
           release-type: node
           config-file: ./.github/release-please-config.json
-          default-notes-section-template: .github/release-please/default.hbs
-          extra-files: |
-            .github/release-please/default.hbs
