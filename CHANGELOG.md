@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/brrock/release-please-test/compare/v1.0.0...v1.0.1) (2025-06-15)
+
+
+### Bug Fixes
+
+* use post processing ([b544945](https://github.com/brrock/release-please-test/commit/b544945e0a7e3766f610782f433473d0ece9b852))
+
 ## 1.0.0 (2025-06-15)
 
 
